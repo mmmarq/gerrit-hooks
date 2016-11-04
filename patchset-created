@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+# .*. coding: UTF-8 .*.
+
+import os
+import re
+import sys
+import subprocess
+from optparse import OptionParser
+from suds.client import Client
+
+MANTIS_URL = "http://mantis.raspberry.pi/mantisbt/api/soap/mantisconnect.php?wsdl"
+MANTIS_USER = "admin"
+MANTIS_PASSWORD = "raspberry"
+
+def add_gerrit_link(id,changeUrl,uploader):
+   client = Client(MANTIS_URL)
+   bugdata = client.service.mc_issue_get(MANTIS_USER,MANTIS_PASSWORD,id)
+   if bugdata.status.id == 50:
+      t_field = None
+      for custom_field in bugdata.custom_fields:
+         if custom_field.field.id == 1:
+            t_field = custom_field
+      if not t_field == None:
+         if re.search(changeUrl,t_field.value) == None:
+            t_field.value = t_field.value + ' ' + changeUrl
+            t_field.value = ' '.join(t_field.value.split())
+            client.service.mc_issue_update(MANTIS_USER,MANTIS_PASSWORD,id,bugdata)
+            user = client.service.mc_login(MANTIS_USER,MANTIS_PASSWORD)
+            note_field = client.factory.create('IssueNoteData')
+            note_field.text = 'New fix is now available at: ' + changeUrl + '\nUploader: ' + uploader
+            note_field.reporter = user.account_data
+            client.service.mc_issue_note_add(MANTIS_USER,MANTIS_PASSWORD,id,note_field)
+         return True
+      else:
+         print "Gerrit custom field not found"
+         return False
+   else:
+      print "CR not in Assigned status"
+      return False
+
+def get_commit_message(gitDir,sha1):
+   command = "git --git-dir=" + gitDir + " log " + sha1 + " --oneline -1"
+   p = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+   cmd_out, cmd_p = p.communicate()
+   return ' '.join(cmd_out.split(' ')[1:])
+
+def main():
+   usage = 'Usage: %prog --change <change id> --is-draft <boolean> --kind <change kind> --change-url <change url> --change-owner <change owner> --project <project name> --branch <branch> --topic <topic> --uploader <uploader> --commit <sha1> --patchset <patchset id>'
+   parser = OptionParser(usage)
+   parser.set_defaults(keepSource=False)
+
+   parser.add_option("--change", dest="changeId", help="Change Id")
+   parser.add_option("--is-draft", dest="isDraft", help="True if Change is Draft")
+   parser.add_option("--kind", dest="changeKind", help="Change Kind")
+   parser.add_option("--change-url", dest="changeUrl", help="Change URL")
+   parser.add_option("--change-owner", dest="changeOwner", help="Change Owner")
+   parser.add_option("--project", dest="projectName", help="Project Name")
+   parser.add_option("--branch", dest="branchName", help="Branch Name")
+   parser.add_option("--topic", dest="topic", help="Topic")
+   parser.add_option("--uploader", dest="uploader", help="Uploader Name")
+   parser.add_option("--commit", dest="commit", help="Commit Sha1 Id")
+   parser.add_option("--patchset", dest="patchsetId", help="Patchset Id")
+
+   (options, args) = parser.parse_args()
+
+   GIT_DIR = os.environ['GIT_DIR']
+
+   # GET COMMIT MESSAGE TO RETRIEVE BUG ID
+   commit_message = get_commit_message(GIT_DIR,options.commit)
+   id = re.sub('[^0-9]*','',commit_message.split()[1])
+
+   # ADD NEW CHANGE ID LINK INTO MANTIS BUG TICKED (GERRITS CUSTOM FIELD)
+   if not add_gerrit_link(id,options.changeUrl,options.uploader):
+      print "Ops,\nWe found an issue trying to add gerrit link into Bug ticket" + id + "!"
+      sys.exit(1)
+
+   # GO AHEAD AND ACCEPT FIX
+   sys.exit(0)
+
+if __name__ == '__main__':
+   main()
+
