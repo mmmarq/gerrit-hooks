@@ -4,34 +4,14 @@
 import os
 import re
 import sys
-import subprocess
+import mantis
 from optparse import OptionParser
-from suds.client import Client
-
-MANTIS_URL = "http://mantis.raspberry.pi/mantisbt/api/soap/mantisconnect.php?wsdl"
-MANTIS_USER = "admin"
-MANTIS_PASSWORD = "raspberry"
-MANTIS_BUG_STATUS = 50
-
-def get_commit_message(gitDir,sha1):
-   command = "git --git-dir=" + gitDir + " log " + sha1 + " --oneline -1"
-   p = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-   cmd_out, cmd_p = p.communicate()
-   return ' '.join(cmd_out.split(' ')[1:])
 
 def commit_message_parser(message):
    if re.match("[Bb][Uu][Gg][ ]*[0-9]+",message) == None:
       return False
    else:
       return True
-
-def check_bug_status(id):
-   client = Client(MANTIS_URL)
-   bugdata = client.service.mc_issue_get(MANTIS_USER,MANTIS_PASSWORD,id)
-   if bugdata.status.id == MANTIS_BUG_STATUS:
-      return True
-   else:
-      return False
 
 def main():
    usage = 'Usage: %prog --project <project name> --refname <refname> --uploader <uploader> --oldrev <sha1> --newrev <sha1>'
@@ -44,21 +24,26 @@ def main():
    parser.add_option("--oldrev", dest="oldRevision", help="Old Revision")
    parser.add_option("--newrev", dest="newRevision", help="New Revision")
 
-
    (options, args) = parser.parse_args()
 
-   GIT_DIR = os.environ['GIT_DIR']
+   try:
+      GIT_DIR = os.environ['GIT_DIR']
+   except OSError:
+      print "GIT_DIR env var not found!"
+      sys.exit(1)
 
    # CHECK IF COMMIT MESSAGE MATCHES TO PREDEFINED PATTERN
-   commit_message = get_commit_message(GIT_DIR,options.newRevision)
+   commit_message = mantis.get_commit_message(GIT_DIR,options.newRevision)
    
    if not commit_message_parser(commit_message):
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
 
+   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
+
    # CHECK IF BUG TRACK IS IN RIGHT STATUS (50 - ASSIGNED)
-   if not check_bug_status(re.sub('[^0-9]*','',commit_message.split()[1])):
-      print "Ops,\nBug ticket is not in the right state!\nPlease move it to \"Assigned\" before try to push your fix"
+   if not mantis.check_bug_assigned_status(bugid):
+      print "Ops,\nBug ticket " + bugid +  " is not in the right state!\nPlease move it to \"Assigned\" before try to push your fix"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX

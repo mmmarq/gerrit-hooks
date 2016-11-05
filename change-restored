@@ -4,45 +4,11 @@
 import os
 import re
 import sys
-import subprocess
+import mantis
 from optparse import OptionParser
-from suds.client import Client
 
-MANTIS_URL = "http://mantis.raspberry.pi/mantisbt/api/soap/mantisconnect.php?wsdl"
-MANTIS_USER = "admin"
-MANTIS_PASSWORD = "raspberry"
-
-def restore_gerrit_link(id,changeUrl,restorer,reason):
-   client = Client(MANTIS_URL)
-   bugdata = client.service.mc_issue_get(MANTIS_USER,MANTIS_PASSWORD,id)
-   if bugdata.status.id == 50:
-      t_field = None
-      for custom_field in bugdata.custom_fields:
-         if custom_field.field.id == 1:
-            t_field = custom_field
-      if not t_field == None:
-         if re.search(changeUrl,t_field.value) == None:
-            t_field.value = t_field.value + ' ' + changeUrl
-            t_field.value = ' '.join(t_field.value.split())
-            client.service.mc_issue_update(MANTIS_USER,MANTIS_PASSWORD,id,bugdata)
-            user = client.service.mc_login(MANTIS_USER,MANTIS_PASSWORD)
-            note_field = client.factory.create('IssueNoteData')
-            note_field.text = 'Following fix was restored: ' + changeUrl + '\nReason: ' + reason + '\nRestored by: ' + restorer
-            note_field.reporter = user.account_data
-            client.service.mc_issue_note_add(MANTIS_USER,MANTIS_PASSWORD,id,note_field)
-         return True
-      else:
-         print "Gerrit custom field not found"
-         return False
-   else:
-      print "CR not in Assigned status"
-      return False
-
-def get_commit_message(gitDir,sha1):
-   command = "git --git-dir=" + gitDir + " log " + sha1 + " --oneline -1"
-   p = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-   cmd_out, cmd_p = p.communicate()
-   return ' '.join(cmd_out.split(' ')[1:])
+MANTIS_GERRIT_FIELD_ID = 1
+MANTIS_ABANDONED_FIELD_ID = 2
 
 def main():
    usage = 'Usage: %prog --change <change id> --change-url <change url> --change-owner <change owner> --project <project name> --branch <branch> --topic <topic> --restorer <restorer> --commit <sha1> --reason <reason>'
@@ -61,15 +27,31 @@ def main():
 
    (options, args) = parser.parse_args()
 
-   GIT_DIR = os.environ['GIT_DIR']
+   try:
+      GIT_DIR = os.environ['GIT_DIR']
+   except OSError:
+      print "GIT_DIR env var not found for Bug ticket " + id + "!"
+      sys.exit(1)
 
    # GET COMMIT MESSAGE TO RETRIEVE BUG ID
-   commit_message = get_commit_message(GIT_DIR,options.commit)
-   id = re.sub('[^0-9]*','',commit_message.split()[1])
+   commit_message = mantis.get_commit_message(GIT_DIR,options.commit)
+   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
 
-   # ADD NEW CHANGE ID LINK INTO MANTIS BUG TICKED (GERRITS CUSTOM FIELD)
-   if not restore_gerrit_link(id,options.changeUrl,options.restorer,options.reason):
-      print "Ops,\nWe found an issue trying to remove gerrit link from Bug ticket " + id + "!"
+   if bugid == '':
+      print "Bug ID number not found ar commit message for Bug ticket " + id + "!"
+      sys.exit(1)
+
+   # REMOVE CHANGE URL FROM ABANDONED CUSTOM FIELD
+   if not mantis.remove_gerrit_change_url(bugid,MANTIS_ABANDONED_FIELD_ID,options.changeUrl):
+      print "Ops,\nWe found an issue trying to remove gerrit url from \"Abandoned\" custom field at Bug ticket " + id + "!"
+      sys.exit(1)
+
+   # ADD CHANGE URL INTO GERRIT CUSTOM FIELD
+   if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_FIELD_ID,options.changeUrl):
+      note = 'Following fix was restored: ' + options.changeUrl + '\nReason: ' + options.reason + '\nRestored by: ' + options.restorer
+      mantis.add_gerrit_note(bugid,note)
+   else:
+      print "Ops,\nWe found an issue trying to add gerrit link into \"Gerrit\" custom field at Bug ticket " + id + "!"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX
