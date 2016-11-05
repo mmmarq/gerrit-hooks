@@ -25,12 +25,16 @@ def add_gerrit_change_url(bugid,fieldid,changeUrl):
       for custom_field in bugdata.custom_fields:
          if custom_field.field.id == fieldid:
             t_field = custom_field
+      bugdata.custom_fields = []
       if not t_field == None:
+         if t_field.value == None:
+            t_field.value = ''
          if re.search(changeUrl,t_field.value) == None:
             value = t_field.value + ' ' + changeUrl
             lvalue = value.split()
             lvalue.sort(key=lambda link: int(link.split('/')[-1]))
             t_field.value = ' '.join(lvalue)
+            bugdata.custom_fields.append(t_field)
             client.service.mc_issue_update(MANTIS_USER,MANTIS_PASSWORD,bugid,bugdata)
          return True
       else:
@@ -49,12 +53,16 @@ def remove_gerrit_change_url(bugid,fieldid,changeUrl):
       for custom_field in bugdata.custom_fields:
          if custom_field.field.id == fieldid:
             t_field = custom_field
+      bugdata.custom_fields = []
       if not t_field == None:
+         if t_field.value == None:
+            t_field.value = ''
          if re.search(changeUrl,t_field.value) != None:
             value = t_field.value.replace(changeUrl, '')
             lvalue = value.split()
             lvalue.sort(key=lambda link: int(link.split('/')[-1]))
             t_field.value = ' '.join(lvalue)
+            bugdata.custom_fields.append(t_field)
             client.service.mc_issue_update(MANTIS_USER,MANTIS_PASSWORD,bugid,bugdata)
          return True
       else:
