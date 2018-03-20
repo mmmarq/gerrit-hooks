@@ -37,18 +37,19 @@ def main():
 
    # GET COMMIT MESSAGE TO RETRIEVE BUG ID
    commit_message = mantis.get_commit_message(GIT_DIR,options.commit)
-   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
 
-   if bugid == '':
-      print "Bug ID number not found ar commit message for Bug ticket " + id + "!"
+   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
+      print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
+
+   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
 
    # ADD CHANGE URL INTO GERRIT CUSTOM FIELD
    if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_FIELD_ID,options.changeUrl):
       note = 'New fix is now available at: ' + options.changeUrl + '\nUploader: ' + options.uploader
       mantis.add_gerrit_note(bugid,note)
    else:
-      print "Ops,\nWe found an issue trying to add gerrit link into \"Abandoned\" custom field at Bug ticket " + id + "!"
+      print "Ops,\nWe found an issue trying to add gerrit link into \"Abandoned\" custom field at Bug ticket " + bugid + "!"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX
