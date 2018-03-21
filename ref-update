@@ -34,16 +34,9 @@ def main():
 
    # CHECK IF COMMIT MESSAGE MATCHES TO PREDEFINED PATTERN
    commit_message = mantis.get_commit_message(GIT_DIR,options.newRevision)
-   
+
    if not commit_message_parser(commit_message):
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
-      sys.exit(1)
-
-   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
-
-   # CHECK IF BUG TRACK IS IN RIGHT STATUS (50 - ASSIGNED)
-   if not mantis.check_bug_assigned_status(bugid):
-      print "Ops,\nBug ticket " + bugid +  " is not in the right state!\nPlease move it to \"Assigned\" before try to push your fix"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX
@@ -51,4 +44,3 @@ def main():
 
 if __name__ == '__main__':
    main()
-

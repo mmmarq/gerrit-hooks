@@ -106,3 +106,8 @@ def get_gerrit_list(bugid,fieldid):
       print "CR not in Assigned status"
       return []
 
+# CHECK IF BUG EXISTIS
+def check_if_bug_exist(bugid):
+   client = Client(MANTIS_URL)
+   bugdata = client.service.mc_issue_exists(MANTIS_USER,MANTIS_PASSWORD,bugid)
+   return bugdata

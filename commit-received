@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+# .*. coding: UTF-8 .*.
+
+import os
+import re
+import sys
+import mantis
+from optparse import OptionParser
+
+def main():
+   usage = 'Usage: %prog --project <project name> --refname <refname> --uploader <uploader> --oldrev <sha1> --newrev <sha1> --cmdref <refname>'
+   parser = OptionParser(usage)
+   parser.set_defaults(keepSource=False)
+
+   parser.add_option("--project", dest="projectName", help="Project Name")
+   parser.add_option("--uploader", dest="uploader", help="Uploader Name")
+   parser.add_option("--refname", dest="refname", help="Reference Name")
+   parser.add_option("--oldrev", dest="oldrev", help="Old Sha1 Review")
+   parser.add_option("--newrev", dest="newrev", help="New Sha1 Review")
+   parser.add_option("--cmdref", dest="cmdref", help="Reference Name")
+
+   (options, args) = parser.parse_args()
+
+   try:
+      GIT_DIR = os.environ['GIT_DIR']
+   except OSError:
+      print "GIT_DIR env var not found!"
+      sys.exit(1)
+
+   # GET COMMIT MESSAGE TO RETRIEVE BUG ID
+   commit_message = mantis.get_commit_message(GIT_DIR,options.newrev)
+
+   # CHECK IF BUD ID IS ON COMMIT MESSAGE BEGNING
+   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
+      print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
+      sys.exit(1)
+
+   # CHECK IF BUG ID ON COMMIT MESSAGE EXISTS
+   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
+   if not mantis.check_if_bug_exist(bugid):
+      print "Ops,\nBug ID not found on bug tracking system!\nPlease check bug number in your commit message and fix it running:\ngit commit --amend\n"
+      sys.exit(1)
+
+   # IF PUSH IS STRAIGHT TO refs/heads/ SKIP BUG STATUS VERIFICATION
+   if options.refname.startswith("refs/heads/"):
+      print "refs/heads push, skipping bug status check!\n"
+   else:
+      # CHECK IF BUG TRACK IS IN RIGHT STATUS (50 - ASSIGNED)
+      if not mantis.check_bug_assigned_status(bugid):
+         print "Ops,\nBug ticket " + bugid +  " is not in the right state!\nPlease move it to \"Assigned\" before try to push your fix"
+         sys.exit(1)
+
+   sys.exit(0)
+
+if __name__ == '__main__':
+   main()

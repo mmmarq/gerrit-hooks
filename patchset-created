@@ -49,7 +49,7 @@ def main():
       note = 'New fix is now available at: ' + options.changeUrl + '\nUploader: ' + options.uploader
       mantis.add_gerrit_note(bugid,note)
    else:
-      print "Ops,\nWe found an issue trying to add gerrit link into \"Abandoned\" custom field at Bug ticket " + bugid + "!"
+      print "Ops,\nWe found an issue trying to add gerrit link into \"Gerrits\" custom field at Bug ticket " + bugid + "!"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX
@@ -57,4 +57,3 @@ def main():
 
 if __name__ == '__main__':
    main()
-
