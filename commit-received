@@ -42,7 +42,7 @@ def main():
       sys.exit(1)
 
    # IF PUSH IS STRAIGHT TO refs/heads/ SKIP BUG STATUS VERIFICATION
-   if options.refname.startswith("refs/heads/"):
+   if options.cmdref.startswith("refs/heads/"):
       print "refs/heads push, skipping bug status check!\n"
    else:
       # CHECK IF BUG TRACK IS IN RIGHT STATUS (50 - ASSIGNED)
