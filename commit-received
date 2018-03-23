@@ -35,8 +35,10 @@ def main():
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
 
-   # CHECK IF BUG ID ON COMMIT MESSAGE EXISTS
+   # GET BUGID NUMBER
    bugid = re.sub('[^0-9]*','',commit_message.split()[1])
+
+   # CHECK IF BUG ID ON COMMIT MESSAGE EXISTS
    if not mantis.check_if_bug_exist(bugid):
       print "Ops,\nBug ID not found on bug tracking system!\nPlease check bug number in your commit message and fix it running:\ngit commit --amend\n"
       sys.exit(1)
