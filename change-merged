@@ -12,7 +12,7 @@ MANTIS_GERRIT_ABANDONED_FIELD_ID = 2
 MANTIS_GERRIT_MERGED_FIELD_ID = 3
 
 def main():
-   usage = 'Usage: %prog --change <change id> --change-url <change url> --change-owner <change owner> --project <project name> --branch <branch> --topic <topic> --restorer <restorer> --commit <sha1> --reason <reason>'
+   usage = 'Usage: %prog --change <change id> --change-url <change url> --change-owner <change owner> --project <project name> --branch <branch> --topic <topic> --submitter <submitter> --commit <sha1> --newrev <sha1>'
    parser = OptionParser(usage)
    parser.set_defaults(keepSource=False)
 
@@ -22,9 +22,9 @@ def main():
    parser.add_option("--project", dest="projectName", help="Project Name")
    parser.add_option("--branch", dest="branchName", help="Branch Name")
    parser.add_option("--topic", dest="topic", help="Topic")
-   parser.add_option("--restorer", dest="restorer", help="Restorer Name")
+   parser.add_option("--submitter", dest="submitter", help="Submitter Name")
    parser.add_option("--commit", dest="commit", help="Commit Sha1 Id")
-   parser.add_option("--reason", dest="reason", help="Reason")
+   parser.add_option("--newrev", dest="newrev", help="New Revision")
 
    (options, args) = parser.parse_args()
 
@@ -50,17 +50,17 @@ def main():
    bugid = commit_message[match.start():match.end()]
    bugid = re.sub('[^0-9]*','',bugid.split()[1])
 
-   # REMOVE CHANGE URL FROM ABANDONED CUSTOM FIELD
-   if not mantis.remove_gerrit_change_url(bugid,MANTIS_GERRIT_ABANDONED_FIELD_ID,options.changeUrl):
-      print "Ops,\nWe found an issue trying to remove gerrit url from \"Abandoned\" custom field at Bug ticket " + bugid + "!"
+   # REMOVE CHANGE URL FROM GERRIT CUSTOM FIELD
+   if not mantis.remove_gerrit_change_url(bugid,MANTIS_GERRIT_OPENED_FIELD_ID,options.changeUrl):
+      print "Ops,\nWe found an issue trying to remove gerrit url from \"Gerrit Opened\" custom field for Bug ticket " + bugid + "!"
       sys.exit(1)
 
-   # ADD CHANGE URL INTO GERRIT CUSTOM FIELD
-   if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_OPENED_FIELD_ID,options.changeUrl):
-      note = 'Following fix was restored: ' + options.changeUrl + '\nReason: ' + options.reason + '\nRestored by: ' + options.restorer
+   # ADD CHANGE URL INTO MERGED CUSTOM FIELD
+   if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_MERGED_FIELD_ID,options.changeUrl):
+      note = 'Following fix was merged: ' + options.changeUrl
       mantis.add_gerrit_note(bugid,note)
    else:
-      print "Ops,\nWe found an issue trying to add gerrit link into \"Gerrit\" custom field at Bug ticket " + bugid + "!"
+      print "Ops,\nWe found an issue trying to add gerrit link into \"Gerrits Merged\" custom field for Bug ticket " + bugid + "!"
       sys.exit(1)
 
    # GO AHEAD AND ACCEPT FIX

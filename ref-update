@@ -7,12 +7,6 @@ import sys
 import mantis
 from optparse import OptionParser
 
-def commit_message_parser(message):
-   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",message) == None:
-      return False
-   else:
-      return True
-
 def main():
    usage = 'Usage: %prog --project <project name> --refname <refname> --uploader <uploader> --oldrev <sha1> --newrev <sha1>'
    parser = OptionParser(usage)
@@ -32,10 +26,11 @@ def main():
       print "GIT_DIR env var not found!"
       sys.exit(1)
 
-   # CHECK IF COMMIT MESSAGE MATCHES TO PREDEFINED PATTERN
+   # GET COMMIT MESSAGE
    commit_message = mantis.get_commit_message(GIT_DIR,options.newRevision)
 
-   if not commit_message_parser(commit_message):
+   # CHECK IF BUD ID IS ON COMMIT MESSAGE
+   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None and re.match("[Rr]evert [\"]*[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
 

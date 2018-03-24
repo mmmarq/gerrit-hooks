@@ -44,7 +44,7 @@ def add_gerrit_change_url(bugid,fieldid,changeUrl):
       print "CR not in Assigned status"
       return False
 
-# REMOVE GERRIT CHANGE URL INTO MANTIS CUSTOM FIELD
+# REMOVE GERRIT CHANGE URL FROM  MANTIS CUSTOM FIELD
 def remove_gerrit_change_url(bugid,fieldid,changeUrl):
    client = Client(MANTIS_URL)
    bugdata = client.service.mc_issue_get(MANTIS_USER,MANTIS_PASSWORD,bugid)

@@ -7,8 +7,9 @@ import sys
 import mantis
 from optparse import OptionParser
 
-MANTIS_GERRIT_FIELD_ID = 1
-MANTIS_ABANDONED_FIELD_ID = 2
+MANTIS_GERRIT_OPENED_FIELD_ID = 1
+MANTIS_GERRIT_ABANDONED_FIELD_ID = 2
+MANTIS_GERRIT_MERGED_FIELD_ID = 3
 
 def main():
    usage = 'Usage: %prog --change <change id> --is-draft <boolean> --kind <change kind> --change-url <change url> --change-owner <change owner> --project <project name> --branch <branch> --topic <topic> --uploader <uploader> --commit <sha1> --patchset <patchset id>'
@@ -38,14 +39,21 @@ def main():
    # GET COMMIT MESSAGE TO RETRIEVE BUG ID
    commit_message = mantis.get_commit_message(GIT_DIR,options.commit)
 
-   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
+   # CHECK IF BUD ID IS ON COMMIT MESSAGE BEGNING
+   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None and re.match("[Rr]evert [\"]*[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
 
-   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
+   # GET BUGID NUMBER
+   match = re.search("[Bb][Uu][Gg][ ]*[0-9]+",commit_message)
+   if match is None :
+      print "Ops,\nBug ID not found in commit message!\nPlease fix it running:\ngit commit --amend\n"
+      sys.exit(1)
+   bugid = commit_message[match.start():match.end()]
+   bugid = re.sub('[^0-9]*','',bugid.split()[1])
 
    # ADD CHANGE URL INTO GERRIT CUSTOM FIELD
-   if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_FIELD_ID,options.changeUrl):
+   if mantis.add_gerrit_change_url(bugid,MANTIS_GERRIT_OPENED_FIELD_ID,options.changeUrl):
       note = 'New fix is now available at: ' + options.changeUrl + '\nUploader: ' + options.uploader
       mantis.add_gerrit_note(bugid,note)
    else:

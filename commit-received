@@ -30,13 +30,18 @@ def main():
    # GET COMMIT MESSAGE TO RETRIEVE BUG ID
    commit_message = mantis.get_commit_message(GIT_DIR,options.newrev)
 
-   # CHECK IF BUD ID IS ON COMMIT MESSAGE BEGNING
-   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
+   # CHECK IF BUD ID IS ON COMMIT MESSAGE
+   if re.match("[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None and re.match("[Rr]evert [\"]*[Bb][Uu][Gg][ ]*[0-9]+",commit_message) == None:
       print "Ops,\nCommit message does not contain bug id identification!\nPlease change your commit message to start with:\n\tBug <bug number> - Commit message\nUse: git commit --amend\n"
       sys.exit(1)
 
    # GET BUGID NUMBER
-   bugid = re.sub('[^0-9]*','',commit_message.split()[1])
+   match = re.search("[Bb][Uu][Gg][ ]*[0-9]+",commit_message)
+   if match is None :
+      print "Ops,\nBug ID not found in commit message!\nPlease fix it running:\ngit commit --amend\n"
+      sys.exit(1)
+   bugid = commit_message[match.start():match.end()]
+   bugid = re.sub('[^0-9]*','',bugid.split()[1])
 
    # CHECK IF BUG ID ON COMMIT MESSAGE EXISTS
    if not mantis.check_if_bug_exist(bugid):
